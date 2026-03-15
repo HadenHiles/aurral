@@ -4,6 +4,8 @@ import {
   completeOnboarding,
   testLidarrOnboarding,
   testNavidromeOnboarding,
+  testPlexOnboarding,
+  testTautulliOnboarding,
 } from "../utils/api";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
@@ -22,6 +24,8 @@ const STEPS = [
   "lidarr",
   "musicbrainz",
   "navidrome",
+  "plex",
+  "tautulli",
   "lastfm",
   "done",
 ];
@@ -37,12 +41,20 @@ function Onboarding() {
   const [navidromeUrl, setNavidromeUrl] = useState("");
   const [navidromeUsername, setNavidromeUsername] = useState("");
   const [navidromePassword, setNavidromePassword] = useState("");
+  const [plexUrl, setPlexUrl] = useState("");
+  const [plexToken, setPlexToken] = useState("");
+  const [tautulliUrl, setTautulliUrl] = useState("");
+  const [tautulliApiKey, setTautulliApiKey] = useState("");
   const [lastfmUsername, setLastfmUsername] = useState("");
   const [lastfmApiKey, setLastfmApiKey] = useState("");
   const [lidarrTestSuccess, setLidarrTestSuccess] = useState(false);
   const [testingLidarr, setTestingLidarr] = useState(false);
   const [navidromeTestSuccess, setNavidromeTestSuccess] = useState(false);
   const [testingNavidrome, setTestingNavidrome] = useState(false);
+  const [plexTestSuccess, setPlexTestSuccess] = useState(false);
+  const [testingPlex, setTestingPlex] = useState(false);
+  const [tautulliTestSuccess, setTautulliTestSuccess] = useState(false);
+  const [testingTautulli, setTestingTautulli] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const { refreshAuth } = useAuth();
@@ -51,6 +63,8 @@ function Onboarding() {
   const currentStep = STEPS[step];
   const hasNavidrome =
     navidromeUrl.trim() && navidromeUsername.trim() && navidromePassword;
+  const hasPlex = !!(plexUrl.trim() && plexToken.trim());
+  const hasTautulli = !!(tautulliUrl.trim() && tautulliApiKey.trim());
   const hasLastfm =
     !!lastfmUsername.trim() && !!lastfmApiKey.trim();
   const adminComplete =
@@ -62,6 +76,8 @@ function Onboarding() {
     (currentStep === "lidarr" && lidarrTestSuccess) ||
     (currentStep === "musicbrainz" && musicbrainzEmail.trim()) ||
     (currentStep === "navidrome" && (!hasNavidrome || navidromeTestSuccess)) ||
+    (currentStep === "plex" && (!hasPlex || plexTestSuccess)) ||
+    (currentStep === "tautulli" && (!hasTautulli || tautulliTestSuccess)) ||
     currentStep === "lastfm";
   const isPrimaryDisabled =
     currentStep === "done"
@@ -71,7 +87,11 @@ function Onboarding() {
           (!lidarrUrl.trim() || !lidarrApiKey.trim() || testingLidarr)
         : currentStep === "navidrome"
           ? testingNavidrome
-          : currentStep === "admin"
+          : currentStep === "plex"
+            ? testingPlex
+            : currentStep === "tautulli"
+              ? testingTautulli
+              : currentStep === "admin"
             ? !adminComplete
             : currentStep !== "welcome" && currentStep !== "lastfm" && !canNext;
 
@@ -99,6 +119,53 @@ function Onboarding() {
       return;
     }
     await handleTestNavidrome();
+  };
+
+  const handlePlexStepAction = async () => {
+    if (!hasPlex) {
+      handleNext();
+      return;
+    }
+    if (plexTestSuccess) {
+      handleNext();
+      return;
+    }
+    setTestingPlex(true);
+    setError("");
+    try {
+      const result = await testPlexOnboarding(plexUrl.trim(), plexToken.trim());
+      setPlexTestSuccess(true);
+      showSuccess(result.message || "Plex connection successful");
+    } catch (e) {
+      setError(e.response?.data?.message || e.message || "Connection failed");
+    } finally {
+      setTestingPlex(false);
+    }
+  };
+
+  const handleTautulliStepAction = async () => {
+    if (!hasTautulli) {
+      handleNext();
+      return;
+    }
+    if (tautulliTestSuccess) {
+      handleNext();
+      return;
+    }
+    setTestingTautulli(true);
+    setError("");
+    try {
+      const result = await testTautulliOnboarding(
+        tautulliUrl.trim(),
+        tautulliApiKey.trim(),
+      );
+      setTautulliTestSuccess(true);
+      showSuccess(result.message || "Tautulli connection successful");
+    } catch (e) {
+      setError(e.response?.data?.message || e.message || "Connection failed");
+    } finally {
+      setTestingTautulli(false);
+    }
   };
 
   const handleTestNavidrome = async () => {
@@ -168,6 +235,20 @@ function Onboarding() {
                 password: navidromePassword,
               }
             : undefined,
+        plex:
+          plexUrl.trim() && plexToken.trim()
+            ? {
+                url: plexUrl.trim().replace(/\/+$/, ""),
+                token: plexToken.trim(),
+              }
+            : undefined,
+        tautulli:
+          tautulliUrl.trim() && tautulliApiKey.trim()
+            ? {
+                url: tautulliUrl.trim().replace(/\/+$/, ""),
+                apiKey: tautulliApiKey.trim(),
+              }
+            : undefined,
         lastfm:
           lastfmUsername.trim() && lastfmApiKey.trim()
             ? {
@@ -227,8 +308,8 @@ function Onboarding() {
               </h2>
               <p className="text-sm" style={{ color: "#c1c1c3" }}>
                 Set up your admin account, connect Lidarr, and add your
-                MusicBrainz email. Navidrome and Last.fm are optional but
-                recommended.
+                MusicBrainz email. Navidrome, Plex, Tautulli, and Last.fm are
+                optional but recommended.
               </p>
             </div>
           </>
@@ -389,6 +470,114 @@ function Onboarding() {
           </>
         )}
 
+        {currentStep === "plex" && (
+          <>
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-xl font-bold" style={{ color: "#fff" }}>
+                Plex (optional)
+              </h2>
+            </div>
+            <p className="text-sm mb-2" style={{ color: "#c1c1c3" }}>
+              Connect Plex for Weekly Flow playlist sync in Plexamp. Leave
+              blank to skip and add later in Settings &rarr; Integrations.
+            </p>
+            <p className="text-xs mb-4 rounded p-2" style={{ color: "#c1c1c3", backgroundColor: "#1a1a1e", border: "1px solid #3a3a42" }}>
+              Use the address Aurral&apos;s server can reach, not your browser
+              address. Section IDs for library sync can be configured later in
+              Settings.
+            </p>
+            <div className="space-y-3">
+              <input
+                type="url"
+                autoComplete="off"
+                className={inputClass}
+                style={inputStyle}
+                placeholder="Plex URL (e.g. http://plex.local:32400)"
+                value={plexUrl}
+                onChange={(e) => {
+                  setPlexUrl(e.target.value);
+                  setPlexTestSuccess(false);
+                }}
+              />
+              <input
+                type="password"
+                autoComplete="off"
+                className={inputClass}
+                style={inputStyle}
+                placeholder="Plex Token"
+                value={plexToken}
+                onChange={(e) => {
+                  setPlexToken(e.target.value);
+                  setPlexTestSuccess(false);
+                }}
+              />
+              <p className="text-xs" style={{ color: "#8a8a8e" }}>
+                To find your token: open{" "}
+                <a
+                  href="https://app.plex.tv"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#60a5fa", textDecoration: "underline" }}
+                >
+                  app.plex.tv
+                </a>
+                , open DevTools (F12) &rarr; Network tab, click any request, and
+                copy <code>X-Plex-Token</code> from the URL or headers.
+              </p>
+            </div>
+          </>
+        )}
+
+        {currentStep === "tautulli" && (
+          <>
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-xl font-bold" style={{ color: "#fff" }}>
+                Tautulli (optional)
+              </h2>
+            </div>
+            <p className="text-sm mb-2" style={{ color: "#c1c1c3" }}>
+              Used to seed discovery recommendations from your Plexamp listening
+              history. Leave blank to skip and add later in Settings &rarr;
+              Integrations.
+            </p>
+            <p className="text-xs mb-4 rounded p-2" style={{ color: "#c1c1c3", backgroundColor: "#1a1a1e", border: "1px solid #3a3a42" }}>
+              Tautulli must be monitoring the same Plex server you configured
+              in the previous step. Use the address Aurral&apos;s server can
+              reach.
+            </p>
+            <div className="space-y-3">
+              <input
+                type="url"
+                autoComplete="off"
+                className={inputClass}
+                style={inputStyle}
+                placeholder="Tautulli URL (e.g. http://tautulli.local:8181)"
+                value={tautulliUrl}
+                onChange={(e) => {
+                  setTautulliUrl(e.target.value);
+                  setTautulliTestSuccess(false);
+                }}
+              />
+              <input
+                type="password"
+                autoComplete="off"
+                className={inputClass}
+                style={inputStyle}
+                placeholder="Tautulli API Key"
+                value={tautulliApiKey}
+                onChange={(e) => {
+                  setTautulliApiKey(e.target.value);
+                  setTautulliTestSuccess(false);
+                }}
+              />
+              <p className="text-xs" style={{ color: "#8a8a8e" }}>
+                API key found in Tautulli &rarr; Settings &rarr; Web Interface
+                &rarr; API Key.
+              </p>
+            </div>
+          </>
+        )}
+
         {currentStep === "lastfm" && (
           <>
             <div className="flex items-center gap-2 mb-4">
@@ -469,7 +658,11 @@ function Onboarding() {
                   ? handleLidarrStepAction
                   : currentStep === "navidrome"
                     ? handleNavidromeStepAction
-                    : handleNext
+                    : currentStep === "plex"
+                      ? handlePlexStepAction
+                      : currentStep === "tautulli"
+                        ? handleTautulliStepAction
+                        : handleNext
             }
             disabled={isPrimaryDisabled}
             className="flex-1 flex items-center justify-center gap-1 py-2 px-4 text-sm font-medium rounded transition-colors disabled:cursor-not-allowed disabled:opacity-50"
@@ -504,6 +697,32 @@ function Onboarding() {
                   <ChevronRight className="w-4 h-4" />
                 </>
               ) : testingNavidrome ? (
+                "Testing…"
+              ) : (
+                "Test"
+              )
+            ) : currentStep === "plex" ? (
+              !hasPlex ? (
+                "Skip"
+              ) : plexTestSuccess ? (
+                <>
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </>
+              ) : testingPlex ? (
+                "Testing…"
+              ) : (
+                "Test"
+              )
+            ) : currentStep === "tautulli" ? (
+              !hasTautulli ? (
+                "Skip"
+              ) : tautulliTestSuccess ? (
+                <>
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </>
+              ) : testingTautulli ? (
                 "Testing…"
               ) : (
                 "Test"

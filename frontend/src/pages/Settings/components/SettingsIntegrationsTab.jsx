@@ -5,6 +5,8 @@ import {
   getLidarrMetadataProfiles,
   getLidarrProfiles,
   testLidarrConnection,
+  testPlexConnection,
+  testTautulliConnection,
 } from "../../../utils/api";
 
 export function SettingsIntegrationsTab({
@@ -32,6 +34,10 @@ export function SettingsIntegrationsTab({
 }) {
   const [lidarrEditing, setLidarrEditing] = useState(false);
   const [navidromeEditing, setNavidromeEditing] = useState(false);
+  const [plexEditing, setPlexEditing] = useState(false);
+  const [tautulliEditing, setTautulliEditing] = useState(false);
+  const [testingPlex, setTestingPlex] = useState(false);
+  const [testingTautulli, setTestingTautulli] = useState(false);
   const [lidarrTestLatencyMs, setLidarrTestLatencyMs] = useState(null);
   const safeLidarrProfiles = Array.isArray(lidarrProfiles)
     ? lidarrProfiles
@@ -667,6 +673,420 @@ export function SettingsIntegrationsTab({
               <code>full</code> (e.g.{" "}
               <code>ND_SCANNER_PURGEMISSING=always</code>) so turning off a flow
               removes those tracks from the library.
+            </p>
+          </fieldset>
+        </div>
+
+        {/* Plex */}
+        <div
+          className="p-6 rounded-lg space-y-4"
+          style={{
+            backgroundColor: "#1a1a1e",
+            border: "1px solid #2a2a2e",
+          }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3
+              className="text-lg font-medium flex items-center"
+              style={{ color: "#fff" }}
+            >
+              Plex
+            </h3>
+            <div className="flex items-center gap-2">
+              {settings.integrations?.plex?.url && (
+                <span className="flex items-center text-sm text-green-400">
+                  <CheckCircle className="w-4 h-4 mr-1" />
+                  Configured
+                </span>
+              )}
+              <button
+                type="button"
+                className={`btn ${
+                  plexEditing ? "btn-primary" : "btn-secondary"
+                } px-2 py-1`}
+                onClick={() => setPlexEditing((v) => !v)}
+                aria-label={plexEditing ? "Lock Plex settings" : "Edit Plex settings"}
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <fieldset
+            disabled={!plexEditing}
+            className={`space-y-4 ${plexEditing ? "" : "opacity-60"}`}
+          >
+            <p className="text-xs rounded p-2" style={{ color: "#c1c1c3", backgroundColor: "#111115", border: "1px solid #2a2a2e" }}>
+              All connections to Plex are made from the <strong>Aurral server</strong>, not your browser — no CORS or browser network restrictions apply. Use the address your Aurral server can reach (LAN IP, hostname, or Docker service name).
+            </p>
+            <div>
+              <label
+                className="block text-sm font-medium mb-1"
+                style={{ color: "#fff" }}
+              >
+                Server URL
+              </label>
+              <input
+                type="url"
+                className="input"
+                placeholder="http://plex.local:32400"
+                autoComplete="off"
+                value={settings.integrations?.plex?.url || ""}
+                onChange={(e) =>
+                  updateSettings({
+                    ...settings,
+                    integrations: {
+                      ...settings.integrations,
+                      plex: {
+                        ...(settings.integrations?.plex || {}),
+                        url: e.target.value,
+                      },
+                    },
+                  })
+                }
+              />
+              <p className="mt-1 text-xs" style={{ color: "#8a8a8e" }}>
+                The URL of your Plex Media Server as seen from Aurral&apos;s
+                server (not your browser). Use the server&apos;s LAN IP or
+                hostname, e.g.{" "}
+                <code>http://192.168.1.10:32400</code> or{" "}
+                <code>http://plex.local:32400</code>. If Plex is running in the
+                same Docker network, use its container name.
+              </p>
+            </div>
+            <div>
+              <label
+                className="block text-sm font-medium mb-1"
+                style={{ color: "#fff" }}
+              >
+                Plex Token
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  className="input flex-1"
+                  placeholder="Enter Plex Token"
+                  autoComplete="off"
+                  value={settings.integrations?.plex?.token || ""}
+                  onChange={(e) =>
+                    updateSettings({
+                      ...settings,
+                      integrations: {
+                        ...settings.integrations,
+                        plex: {
+                          ...(settings.integrations?.plex || {}),
+                          token: e.target.value,
+                        },
+                      },
+                    })
+                  }
+                />
+                <button
+                  type="button"
+                  disabled={
+                    testingPlex ||
+                    !settings.integrations?.plex?.url ||
+                    !settings.integrations?.plex?.token
+                  }
+                  className="btn btn-secondary"
+                  onClick={async () => {
+                    setTestingPlex(true);
+                    try {
+                      const result = await testPlexConnection(
+                        settings.integrations.plex.url,
+                        settings.integrations.plex.token,
+                      );
+                      if (result.success) showSuccess(result.message);
+                      else showError(result.error || "Connection failed");
+                    } catch (err) {
+                      showError(
+                        err.response?.data?.message ||
+                          err.response?.data?.error ||
+                          err.message,
+                      );
+                    } finally {
+                      setTestingPlex(false);
+                    }
+                  }}
+                >
+                  {testingPlex ? "Testing..." : "Test"}
+                </button>
+              </div>
+              <p className="mt-1 text-xs" style={{ color: "#c1c1c3" }}>
+                <strong>How to find your Plex token:</strong> Open{" "}
+                <a
+                  href="https://app.plex.tv"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                  style={{ color: "#60a5fa" }}
+                >
+                  app.plex.tv
+                </a>{" "}
+                in a browser, open DevTools (F12) &rarr; Network tab, click on
+                any request to plex.tv or your server, and copy the{" "}
+                <code>X-Plex-Token</code> value from the request URL or headers.
+                Alternatively, visit{" "}
+                <a
+                  href="https://www.plex.tv/claim/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                  style={{ color: "#60a5fa" }}
+                >
+                  plex.tv/claim
+                </a>{" "}
+                and use the token shown after signing in.
+              </p>
+            </div>
+            <div>
+              <label
+                className="block text-sm font-medium mb-1"
+                style={{ color: "#fff" }}
+              >
+                Music Library Section ID
+              </label>
+              <input
+                type="text"
+                className="input"
+                placeholder="e.g. 3"
+                autoComplete="off"
+                value={settings.integrations?.plex?.musicSectionId || ""}
+                onChange={(e) =>
+                  updateSettings({
+                    ...settings,
+                    integrations: {
+                      ...settings.integrations,
+                      plex: {
+                        ...(settings.integrations?.plex || {}),
+                        musicSectionId: e.target.value,
+                      },
+                    },
+                  })
+                }
+              />
+              <p className="mt-1 text-xs" style={{ color: "#c1c1c3" }}>
+                The numeric ID of your main Plex music library.{" "}
+                {settings.integrations?.plex?.url &&
+                settings.integrations?.plex?.token ? (
+                  <>
+                    Open{" "}
+                    <a
+                      href={`${settings.integrations.plex.url}/library/sections?X-Plex-Token=${settings.integrations.plex.token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                      style={{ color: "#60a5fa" }}
+                    >
+                      your Plex sections list
+                    </a>{" "}
+                    and find the <code>key</code> attribute for your music library.
+                  </>
+                ) : (
+                  <>
+                    Save your URL and token first, then a direct link will appear
+                    here. The URL format is{" "}
+                    <code>[plex-url]/library/sections?X-Plex-Token=[token]</code>.
+                  </>
+                )}
+                {" "}Reserved for future use (search within main library).
+              </p>
+            </div>
+            <div>
+              <label
+                className="block text-sm font-medium mb-1"
+                style={{ color: "#fff" }}
+              >
+                Weekly Flow Section ID
+              </label>
+              <input
+                type="text"
+                className="input"
+                placeholder="e.g. 5"
+                autoComplete="off"
+                value={settings.integrations?.plex?.weeklyFlowSectionId || ""}
+                onChange={(e) =>
+                  updateSettings({
+                    ...settings,
+                    integrations: {
+                      ...settings.integrations,
+                      plex: {
+                        ...(settings.integrations?.plex || {}),
+                        weeklyFlowSectionId: e.target.value,
+                      },
+                    },
+                  })
+                }
+              />
+              <p className="mt-1 text-xs" style={{ color: "#c1c1c3" }}>
+                The numeric ID of a <strong>separate</strong> Plex music library
+                pointing at your Weekly Flow download folder — the same folder
+                path your Navidrome Weekly Flow library uses (configured via{" "}
+                <code>DOWNLOAD_FOLDER</code> env var, e.g.{" "}
+                <code>/data/downloads/tmp/aurral-weekly-flow</code>).{" "}
+                Add this folder as a new Music library in Plex once, then{" "}
+                {settings.integrations?.plex?.url &&
+                settings.integrations?.plex?.token ? (
+                  <>
+                    check{" "}
+                    <a
+                      href={`${settings.integrations.plex.url}/library/sections?X-Plex-Token=${settings.integrations.plex.token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                      style={{ color: "#60a5fa" }}
+                    >
+                      your Plex sections list
+                    </a>{" "}
+                    for its <code>key</code> value.
+                  </>
+                ) : (
+                  <>find its key in <code>[plex-url]/library/sections?X-Plex-Token=[token]</code>.</>
+                )}{" "}
+                Required for Weekly Flow playlist sync in Plexamp.
+              </p>
+            </div>
+          </fieldset>
+        </div>
+
+        {/* Tautulli */}
+        <div
+          className="p-6 rounded-lg space-y-4"
+          style={{
+            backgroundColor: "#1a1a1e",
+            border: "1px solid #2a2a2e",
+          }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3
+              className="text-lg font-medium flex items-center"
+              style={{ color: "#fff" }}
+            >
+              Tautulli
+            </h3>
+            <div className="flex items-center gap-2">
+              {settings.integrations?.tautulli?.url && (
+                <span className="flex items-center text-sm text-green-400">
+                  <CheckCircle className="w-4 h-4 mr-1" />
+                  Configured
+                </span>
+              )}
+              <button
+                type="button"
+                className={`btn ${
+                  tautulliEditing ? "btn-primary" : "btn-secondary"
+                } px-2 py-1`}
+                onClick={() => setTautulliEditing((v) => !v)}
+                aria-label={
+                  tautulliEditing
+                    ? "Lock Tautulli settings"
+                    : "Edit Tautulli settings"
+                }
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <fieldset
+            disabled={!tautulliEditing}
+            className={`space-y-4 ${tautulliEditing ? "" : "opacity-60"}`}
+          >
+            <p className="text-xs rounded p-2" style={{ color: "#c1c1c3", backgroundColor: "#111115", border: "1px solid #2a2a2e" }}>
+              All connections to Tautulli are made from the <strong>Aurral server</strong>. Use the address your Aurral server can reach. Tautulli must be monitoring the same Plex server you configured above.
+            </p>
+            <div>
+              <label
+                className="block text-sm font-medium mb-1"
+                style={{ color: "#fff" }}
+              >
+                Server URL
+              </label>
+              <input
+                type="url"
+                className="input"
+                placeholder="http://tautulli.local:8181"
+                autoComplete="off"
+                value={settings.integrations?.tautulli?.url || ""}
+                onChange={(e) =>
+                  updateSettings({
+                    ...settings,
+                    integrations: {
+                      ...settings.integrations,
+                      tautulli: {
+                        ...(settings.integrations?.tautulli || {}),
+                        url: e.target.value,
+                      },
+                    },
+                  })
+                }
+              />
+            </div>
+            <div>
+              <label
+                className="block text-sm font-medium mb-1"
+                style={{ color: "#fff" }}
+              >
+                API Key
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  className="input flex-1"
+                  placeholder="Enter Tautulli API Key"
+                  autoComplete="off"
+                  value={settings.integrations?.tautulli?.apiKey || ""}
+                  onChange={(e) =>
+                    updateSettings({
+                      ...settings,
+                      integrations: {
+                        ...settings.integrations,
+                        tautulli: {
+                          ...(settings.integrations?.tautulli || {}),
+                          apiKey: e.target.value,
+                        },
+                      },
+                    })
+                  }
+                />
+                <button
+                  type="button"
+                  disabled={
+                    testingTautulli ||
+                    !settings.integrations?.tautulli?.url ||
+                    !settings.integrations?.tautulli?.apiKey
+                  }
+                  className="btn btn-secondary"
+                  onClick={async () => {
+                    setTestingTautulli(true);
+                    try {
+                      const result = await testTautulliConnection(
+                        settings.integrations.tautulli.url,
+                        settings.integrations.tautulli.apiKey,
+                      );
+                      if (result.success) showSuccess(result.message);
+                      else showError(result.error || "Connection failed");
+                    } catch (err) {
+                      showError(
+                        err.response?.data?.message ||
+                          err.response?.data?.error ||
+                          err.message,
+                      );
+                    } finally {
+                      setTestingTautulli(false);
+                    }
+                  }}
+                >
+                  {testingTautulli ? "Testing..." : "Test"}
+                </button>
+              </div>
+              <p className="mt-1 text-xs" style={{ color: "#c1c1c3" }}>
+                Found in Tautulli &rarr; Settings &rarr; Web Interface &rarr; API Key.
+              </p>
+            </div>
+            <p className="mt-1 text-xs" style={{ color: "#8a8a8e" }}>
+              When configured, Aurral pulls your Plex listening history from
+              Tautulli and filters it to <strong>Plexamp plays only</strong>,
+              using it as an additional seed source for discovery alongside
+              or instead of Last.fm listening data.
             </p>
           </fieldset>
         </div>

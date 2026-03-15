@@ -1,3 +1,4 @@
+import axios from "axios";
 import { dbOps } from "../config/db-helpers.js";
 import { GENRE_KEYWORDS } from "../config/constants.js";
 import {
@@ -219,6 +220,7 @@ export const updateDiscoveryCache = async () => {
     }
 
     let lastfmArtists = [];
+    let tautulliArtists = [];
     emitDiscoveryProgress(
       "collecting_seeds",
       "Collecting recommendation seed artists",
@@ -248,8 +250,7 @@ export const updateDiscoveryCache = async () => {
             );
           } else if (userTopArtists.error) {
             console.error(
-              `Last.fm API error: ${
-                userTopArtists.message || userTopArtists.error
+              `Last.fm API error: ${userTopArtists.message || userTopArtists.error
               }`,
             );
           } else if (userTopArtists?.topartists?.artist) {
@@ -296,6 +297,59 @@ export const updateDiscoveryCache = async () => {
       );
     }
 
+    // Tautulli — fetch play history and aggregate top artists
+    const tautulliConfig = dbOps.getSettings().integrations?.tautulli;
+    if (tautulliConfig?.url && tautulliConfig?.apiKey) {
+      console.log("Fetching top artists from Tautulli play history...");
+      try {
+        const response = await axios.get(`${tautulliConfig.url}/api/v2`, {
+          params: {
+            apikey: tautulliConfig.apiKey,
+            cmd: "get_history",
+            media_type: "track",
+            length: 500,
+            order_column: "date",
+            order_dir: "desc",
+          },
+          timeout: 15000,
+        });
+        const allRecords = response.data?.response?.data?.data || [];
+        // Filter to Plexamp plays only (covers all platforms: iOS, Android, Desktop, etc.)
+        const records = allRecords.filter((r) => {
+          const product = (r.product || "").toLowerCase();
+          const player = (r.player || "").toLowerCase();
+          return product.includes("plexamp") || player.includes("plexamp");
+        });
+        console.log(
+          `[Discovery] Tautulli: ${records.length} Plexamp plays out of ${allRecords.length} total track plays.`,
+        );
+        const artistCounts = new Map();
+        for (const record of records) {
+          const artist = record.grandparent_title;
+          if (artist) {
+            artistCounts.set(artist, (artistCounts.get(artist) || 0) + 1);
+          }
+        }
+        const topTautulli = Array.from(artistCounts.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 50);
+        for (const [artistName, playcount] of topTautulli) {
+          const mbid = musicbrainzGetCachedArtistMbidByName(artistName);
+          if (mbid) {
+            tautulliArtists.push({ mbid, artistName, playcount, source: "tautulli" });
+          } else {
+            // Still add without mbid — will be filtered at dedup but name is available for tags/genres
+            tautulliArtists.push({ mbid: null, artistName, playcount, source: "tautulli" });
+          }
+        }
+        console.log(
+          `[Discovery] Tautulli: found ${tautulliArtists.length} top artists from ${records.length} Plexamp history records.`,
+        );
+      } catch (e) {
+        console.warn(`[Discovery] Tautulli fetch failed: ${e.message}`);
+      }
+    }
+
     const allSourceArtists = [
       ...libraryArtists.map((a) => ({
         mbid: a.mbid,
@@ -307,6 +361,13 @@ export const updateDiscoveryCache = async () => {
         artistName: a.artistName,
         source: "lastfm",
       })),
+      ...tautulliArtists
+        .filter((a) => a.mbid)
+        .map((a) => ({
+          mbid: a.mbid,
+          artistName: a.artistName,
+          source: "tautulli",
+        })),
     ];
 
     const uniqueArtists = [];
@@ -688,10 +749,10 @@ export const updateDiscoveryCache = async () => {
                   if (deezer?.imageUrl) {
                     item.image = deezer.imageUrl;
                   }
-                } catch (e) {}
+                } catch (e) { }
               }
-            } catch (e) {}
-          } catch (e) {}
+            } catch (e) { }
+          } catch (e) { }
         }),
       );
 

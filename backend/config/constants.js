@@ -163,6 +163,8 @@ export const defaultData = {
     ],
     integrations: {
       navidrome: { url: "", username: "", password: "" },
+      plex: { url: "", token: "", musicSectionId: "", weeklyFlowSectionId: "" },
+      tautulli: { url: "", apiKey: "", musicSectionId: "" },
       lastfm: {
         apiKey: "",
         username: "",

@@ -113,6 +113,38 @@ export const testNavidromeOnboarding = async (url, username, password) => {
   return response.data;
 };
 
+export const testPlexOnboarding = async (url, token) => {
+  const response = await api.post("/onboarding/plex/test", {
+    url: url?.replace(/\/+$/, ""),
+    token,
+  });
+  return response.data;
+};
+
+export const testTautulliOnboarding = async (url, apiKey) => {
+  const response = await api.post("/onboarding/tautulli/test", {
+    url: url?.replace(/\/+$/, ""),
+    apiKey,
+  });
+  return response.data;
+};
+
+export const testPlexConnection = async (url, token) => {
+  const response = await api.post("/settings/integrations/plex/test", {
+    url: url?.replace(/\/+$/, ""),
+    token,
+  });
+  return response.data;
+};
+
+export const testTautulliConnection = async (url, apiKey) => {
+  const response = await api.post("/settings/integrations/tautulli/test", {
+    url: url?.replace(/\/+$/, ""),
+    apiKey,
+  });
+  return response.data;
+};
+
 export const getAuthConfig = async () => {
   const response = await api.get("/auth/config");
   return response.data;
@@ -511,9 +543,8 @@ export const getLidarrProfiles = async (url, apiKey) => {
   if (url) params.append("url", url);
   if (apiKey) params.append("apiKey", apiKey);
   const queryString = params.toString();
-  const endpoint = `/settings/lidarr/profiles${
-    queryString ? `?${queryString}` : ""
-  }`;
+  const endpoint = `/settings/lidarr/profiles${queryString ? `?${queryString}` : ""
+    }`;
   const response = await api.get(endpoint);
   return response.data;
 };
@@ -523,9 +554,8 @@ export const getLidarrMetadataProfiles = async (url, apiKey) => {
   if (url) params.append("url", url);
   if (apiKey) params.append("apiKey", apiKey);
   const queryString = params.toString();
-  const endpoint = `/settings/lidarr/metadata-profiles${
-    queryString ? `?${queryString}` : ""
-  }`;
+  const endpoint = `/settings/lidarr/metadata-profiles${queryString ? `?${queryString}` : ""
+    }`;
   const response = await api.get(endpoint);
   return response.data;
 };
@@ -535,9 +565,8 @@ export const testLidarrConnection = async (url, apiKey) => {
   if (url) params.append("url", url);
   if (apiKey) params.append("apiKey", apiKey);
   const queryString = params.toString();
-  const endpoint = `/settings/lidarr/test${
-    queryString ? `?${queryString}` : ""
-  }`;
+  const endpoint = `/settings/lidarr/test${queryString ? `?${queryString}` : ""
+    }`;
   const response = await api.get(endpoint);
   return response.data;
 };

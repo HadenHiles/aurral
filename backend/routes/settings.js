@@ -33,45 +33,57 @@ router.post("/", async (req, res) => {
         ...integrations,
         lidarr: integrations.lidarr
           ? {
-              ...(mergedIntegrations.lidarr || {}),
-              ...integrations.lidarr,
-            }
+            ...(mergedIntegrations.lidarr || {}),
+            ...integrations.lidarr,
+          }
           : mergedIntegrations.lidarr,
         navidrome: integrations.navidrome
           ? {
-              ...(mergedIntegrations.navidrome || {}),
-              ...integrations.navidrome,
-            }
+            ...(mergedIntegrations.navidrome || {}),
+            ...integrations.navidrome,
+          }
           : mergedIntegrations.navidrome,
+        plex: integrations.plex
+          ? {
+            ...(mergedIntegrations.plex || {}),
+            ...integrations.plex,
+          }
+          : mergedIntegrations.plex,
+        tautulli: integrations.tautulli
+          ? {
+            ...(mergedIntegrations.tautulli || {}),
+            ...integrations.tautulli,
+          }
+          : mergedIntegrations.tautulli,
         slskd: integrations.slskd
           ? {
-              ...(mergedIntegrations.slskd || {}),
-              ...integrations.slskd,
-            }
+            ...(mergedIntegrations.slskd || {}),
+            ...integrations.slskd,
+          }
           : mergedIntegrations.slskd,
         lastfm: integrations.lastfm
           ? {
-              ...(mergedIntegrations.lastfm || {}),
-              ...integrations.lastfm,
-            }
+            ...(mergedIntegrations.lastfm || {}),
+            ...integrations.lastfm,
+          }
           : mergedIntegrations.lastfm,
         musicbrainz: integrations.musicbrainz
           ? {
-              ...(mergedIntegrations.musicbrainz || {}),
-              ...integrations.musicbrainz,
-            }
+            ...(mergedIntegrations.musicbrainz || {}),
+            ...integrations.musicbrainz,
+          }
           : mergedIntegrations.musicbrainz,
         general: integrations.general
           ? {
-              ...(mergedIntegrations.general || {}),
-              ...integrations.general,
-            }
+            ...(mergedIntegrations.general || {}),
+            ...integrations.general,
+          }
           : mergedIntegrations.general,
         gotify: integrations.gotify
           ? {
-              ...(mergedIntegrations.gotify || {}),
-              ...integrations.gotify,
-            }
+            ...(mergedIntegrations.gotify || {}),
+            ...integrations.gotify,
+          }
           : mergedIntegrations.gotify,
       };
     }
@@ -94,6 +106,51 @@ router.post("/", async (req, res) => {
     res
       .status(500)
       .json({ error: "Failed to save settings", message: error.message });
+  }
+});
+
+router.post("/integrations/plex/test", async (req, res) => {
+  try {
+    const { PlexClient } = await import("../services/plexClient.js");
+    const url = (req.body?.url || "").trim().replace(/\/+$/, "");
+    const token = (req.body?.token || "").trim();
+    if (!url || !token) {
+      return res.status(400).json({ error: "URL and token are required" });
+    }
+    const client = new PlexClient(url, token);
+    const data = await client.ping();
+    const name =
+      data?.MediaContainer?.friendlyName ||
+      data?.MediaContainer?.machineIdentifier ||
+      "Plex Media Server";
+    res.json({ success: true, message: `Connected to ${name}` });
+  } catch (error) {
+    res.status(400).json({ error: "Connection failed", message: error.message });
+  }
+});
+
+router.post("/integrations/tautulli/test", async (req, res) => {
+  try {
+    const axios = (await import("axios")).default;
+    const url = (req.body?.url || "").trim().replace(/\/+$/, "");
+    const apiKey = (req.body?.apiKey || "").trim();
+    if (!url || !apiKey) {
+      return res.status(400).json({ error: "URL and API key are required" });
+    }
+    const response = await axios.get(`${url}/api/v2`, {
+      params: { apikey: apiKey, cmd: "get_server_info" },
+      timeout: 10000,
+    });
+    const result = response.data?.response;
+    if (result?.result !== "success") {
+      return res
+        .status(400)
+        .json({ error: "Tautulli returned an error", message: result?.message });
+    }
+    const serverName = result?.data?.pms_name || "Plex Media Server";
+    res.json({ success: true, message: `Connected — monitoring ${serverName}` });
+  } catch (error) {
+    res.status(400).json({ error: "Connection failed", message: error.message });
   }
 });
 

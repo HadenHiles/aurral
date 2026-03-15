@@ -69,9 +69,54 @@ router.post("/navidrome/test", async (req, res) => {
   }
 });
 
+router.post("/plex/test", async (req, res) => {
+  try {
+    const { PlexClient } = await import("../services/plexClient.js");
+    const url = (req.body?.url || "").trim().replace(/\/+$/, "");
+    const token = (req.body?.token || "").trim();
+    if (!url || !token) {
+      return res.status(400).json({ error: "URL and token are required" });
+    }
+    const client = new PlexClient(url, token);
+    const data = await client.ping();
+    const name =
+      data?.MediaContainer?.friendlyName ||
+      data?.MediaContainer?.machineIdentifier ||
+      "Plex Media Server";
+    res.json({ success: true, message: `Connected to ${name}` });
+  } catch (error) {
+    res.status(400).json({ error: "Connection failed", message: error.message });
+  }
+});
+
+router.post("/tautulli/test", async (req, res) => {
+  try {
+    const axios = (await import("axios")).default;
+    const url = (req.body?.url || "").trim().replace(/\/+$/, "");
+    const apiKey = (req.body?.apiKey || "").trim();
+    if (!url || !apiKey) {
+      return res.status(400).json({ error: "URL and API key are required" });
+    }
+    const response = await axios.get(`${url}/api/v2`, {
+      params: { apikey: apiKey, cmd: "get_server_info" },
+      timeout: 10000,
+    });
+    const result = response.data?.response;
+    if (result?.result !== "success") {
+      return res
+        .status(400)
+        .json({ error: "Tautulli returned an error", message: result?.message });
+    }
+    const serverName = result?.data?.pms_name || "Plex Media Server";
+    res.json({ success: true, message: `Connected — monitoring ${serverName}` });
+  } catch (error) {
+    res.status(400).json({ error: "Connection failed", message: error.message });
+  }
+});
+
 router.post("/complete", async (req, res) => {
   try {
-    const { authUser, authPassword, lidarr, musicbrainz, navidrome, lastfm } =
+    const { authUser, authPassword, lidarr, musicbrainz, navidrome, plex, tautulli, lastfm } =
       req.body;
 
     const current = dbOps.getSettings();
@@ -95,27 +140,35 @@ router.post("/complete", async (req, res) => {
       musicbrainz:
         musicbrainz && musicbrainz.email != null
           ? {
-              ...(current.integrations?.musicbrainz || {}),
-              email: String(musicbrainz.email).trim(),
-            }
+            ...(current.integrations?.musicbrainz || {}),
+            email: String(musicbrainz.email).trim(),
+          }
           : current.integrations?.musicbrainz,
       navidrome:
         navidrome && (navidrome.url || navidrome.username)
           ? { ...(current.integrations?.navidrome || {}), ...navidrome }
           : current.integrations?.navidrome,
+      plex:
+        plex && (plex.url || plex.token)
+          ? { ...(current.integrations?.plex || {}), ...plex }
+          : current.integrations?.plex,
+      tautulli:
+        tautulli && (tautulli.url || tautulli.apiKey)
+          ? { ...(current.integrations?.tautulli || {}), ...tautulli }
+          : current.integrations?.tautulli,
       lastfm:
         lastfm && (lastfm.apiKey || lastfm.username)
           ? {
-              ...(current.integrations?.lastfm || {}),
-              apiKey:
-                lastfm.apiKey != null
-                  ? String(lastfm.apiKey).trim()
-                  : current.integrations?.lastfm?.apiKey ?? "",
-              username:
-                lastfm.username != null
-                  ? String(lastfm.username).trim()
-                  : current.integrations?.lastfm?.username ?? "",
-            }
+            ...(current.integrations?.lastfm || {}),
+            apiKey:
+              lastfm.apiKey != null
+                ? String(lastfm.apiKey).trim()
+                : current.integrations?.lastfm?.apiKey ?? "",
+            username:
+              lastfm.username != null
+                ? String(lastfm.username).trim()
+                : current.integrations?.lastfm?.username ?? "",
+          }
           : current.integrations?.lastfm,
     };
 
