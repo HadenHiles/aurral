@@ -812,30 +812,17 @@ export function SettingsIntegrationsTab({
                 </button>
               </div>
               <p className="mt-1 text-xs" style={{ color: "#c1c1c3" }}>
-                <strong>How to find your Plex token:</strong> Open{" "}
+                <strong>How to find your Plex token:</strong> See Plex&apos;s
+                official guide:{" "}
                 <a
-                  href="https://app.plex.tv"
+                  href="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline"
                   style={{ color: "#60a5fa" }}
                 >
-                  app.plex.tv
-                </a>{" "}
-                in a browser, open DevTools (F12) &rarr; Network tab, click on
-                any request to plex.tv or your server, and copy the{" "}
-                <code>X-Plex-Token</code> value from the request URL or headers.
-                Alternatively, visit{" "}
-                <a
-                  href="https://www.plex.tv/claim/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline"
-                  style={{ color: "#60a5fa" }}
-                >
-                  plex.tv/claim
-                </a>{" "}
-                and use the token shown after signing in.
+                  Finding an authentication token
+                </a>.
               </p>
             </div>
             <div>

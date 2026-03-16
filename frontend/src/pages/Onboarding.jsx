@@ -512,17 +512,16 @@ function Onboarding() {
                 }}
               />
               <p className="text-xs" style={{ color: "#8a8a8e" }}>
-                To find your token: open{" "}
+                See Plex&apos;s official guide on{" "}
                 <a
-                  href="https://app.plex.tv"
+                  href="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: "#60a5fa", textDecoration: "underline" }}
                 >
-                  app.plex.tv
+                  Finding an authentication token
                 </a>
-                , open DevTools (F12) &rarr; Network tab, click any request, and
-                copy <code>X-Plex-Token</code> from the URL or headers.
+                {" "}for step-by-step instructions.
               </p>
             </div>
           </>
