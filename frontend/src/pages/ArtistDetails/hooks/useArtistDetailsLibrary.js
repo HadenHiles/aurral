@@ -145,8 +145,7 @@ export function useArtistDetailsLibrary({
       setLibraryArtist(null);
       setLibraryAlbums([]);
       showSuccess(
-        `Successfully removed ${artist?.name || "artist"} from library${
-          deleteFiles ? " and deleted files" : ""
+        `Successfully removed ${artist?.name || "artist"} from library${deleteFiles ? " and deleted files" : ""
         }`,
       );
       setShowDeleteModal(false);
@@ -194,10 +193,9 @@ export function useArtistDetailsLibrary({
     } catch (err) {
       console.error("Update error:", err);
       showError(
-        `Failed to update monitor option: ${
-          err.response?.data?.message ||
-          err.response?.data?.error ||
-          err.message
+        `Failed to update monitor option: ${err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message
         }`,
       );
     } finally {
@@ -270,7 +268,7 @@ export function useArtistDetailsLibrary({
           }).catch(() => null);
           if (resolved?.id) return resolved;
         }
-      } catch {}
+      } catch { }
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
     return null;
@@ -290,7 +288,7 @@ export function useArtistDetailsLibrary({
             a.artistId === artistId,
         );
         if (found) return found;
-      } catch {}
+      } catch { }
       await new Promise((resolve) => setTimeout(resolve, 1500));
     }
     return null;
@@ -330,30 +328,50 @@ export function useArtistDetailsLibrary({
         rootFolderPath: appSettings?.rootFolderPath,
         monitorOption: defaultMonitorOption,
       });
-      let fullArtist = await resolveArtistFromAddResponse(result, {
-        refresh: true,
-        hydrateAlbums: true,
-      });
-      if (result?.queued) {
-        showSuccess(`Adding ${artist.name}...`);
-        fullArtist = await waitForLibraryArtist(artist.id);
-      } else if (!fullArtist) {
-        const lookup = await lookupArtistInLibrary(artist.id);
-        if (lookup.exists && lookup.artist) {
-          fullArtist = await hydrateLibraryArtist(lookup.artist);
+
+      // The server accepted the add — optimistically mark the artist as in the
+      // library and release the spinner immediately so the UI transitions right away.
+      setExistsInLibrary(true);
+      setAddingToLibrary(false);
+      showSuccess(
+        result?.queued
+          ? `Adding ${artist.name}…`
+          : `${artist.name} added to library!`,
+      );
+
+      // Hydrate the full artist/albums data in the background without blocking.
+      (async () => {
+        try {
+          let fullArtist = await resolveArtistFromAddResponse(result, {
+            refresh: !result?.queued,
+            hydrateAlbums: !result?.queued,
+          });
+          if (!fullArtist) {
+            fullArtist = await waitForLibraryArtist(artist.id, {
+              attempts: result?.queued ? 40 : 20,
+              delayMs: 1500,
+              refresh: true,
+              hydrateAlbums: true,
+            });
+          }
+          if (!fullArtist) {
+            const lookup = await lookupArtistInLibrary(artist.id);
+            if (lookup.exists && lookup.artist) {
+              await hydrateLibraryArtist(lookup.artist);
+            }
+          }
+        } catch {
+          // Silent: artist is already shown as in the library; full data will
+          // load the next time the page is visited.
         }
-      }
-      if (!fullArtist) {
-        throw new Error("Artist is taking longer than expected to add");
-      }
-      showSuccess(`${artist.name} added to library successfully!`);
+      })();
+
       return true;
     } catch (err) {
       showError(
-        `Failed to add artist to library: ${
-          err.response?.data?.message ||
-          err.response?.data?.error ||
-          err.message
+        `Failed to add artist to library: ${err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message
         }`,
       );
       return false;
@@ -633,8 +651,7 @@ export function useArtistDetailsLibrary({
       showSuccess(`Search triggered for ${title}`);
     } catch (err) {
       showError(
-        `Failed to re-search album: ${
-          err.response?.data?.message || err.message
+        `Failed to re-search album: ${err.response?.data?.message || err.message
         }`,
       );
     } finally {
@@ -738,8 +755,7 @@ export function useArtistDetailsLibrary({
       setDeleteAlbumFiles(false);
     } catch (err) {
       showError(
-        `Failed to ${deleteAlbumFiles ? "delete" : "unmonitor"} album: ${
-          err.response?.data?.message || err.message
+        `Failed to ${deleteAlbumFiles ? "delete" : "unmonitor"} album: ${err.response?.data?.message || err.message
         }`,
       );
     } finally {
@@ -892,7 +908,7 @@ export function useArtistDetailsLibrary({
           }
           const overridesChanged =
             Object.keys(nextOverrides).length !==
-              Object.keys(currentOverrides).length ||
+            Object.keys(currentOverrides).length ||
             Object.keys(nextOverrides).some(
               (key) => nextOverrides[key] !== currentOverrides[key],
             );
