@@ -2,7 +2,7 @@ import { UUID_REGEX } from "../../../config/constants.js";
 import { libraryManager } from "../../../services/libraryManager.js";
 import { musicbrainzGetArtistReleaseGroups } from "../../../services/apiClients.js";
 import { dbOps } from "../../../config/db-helpers.js";
-import { cacheMiddleware } from "../../../middleware/cache.js";
+import { cacheMiddleware, noCache } from "../../../middleware/cache.js";
 import {
   requireAuth,
   requirePermission,
@@ -32,8 +32,8 @@ const monitorArtistAlbums = async (artist, albums, lidarrClient) => {
         : null;
       const metadataProfile = Array.isArray(profiles)
         ? profiles.find(
-            (profile) => String(profile?.id) === String(metadataProfileId),
-          )
+          (profile) => String(profile?.id) === String(metadataProfileId),
+        )
         : null;
       const normalizeTypeName = (value) =>
         String(value || "")
@@ -83,7 +83,7 @@ const monitorArtistAlbums = async (artist, albums, lidarrClient) => {
           return allowedPrimaryTypes.has(type);
         });
       }
-    } catch {}
+    } catch { }
   }
   const albumsToMonitor = [];
 
@@ -153,7 +153,7 @@ const monitorArtistAlbums = async (artist, albums, lidarrClient) => {
 };
 
 export default function registerArtists(router) {
-  router.get("/artists", cacheMiddleware(120), async (req, res) => {
+  router.get("/artists", noCache, async (req, res) => {
     try {
       const artists = await libraryManager.getAllArtists();
       const formatted = artists.map((artist) => ({

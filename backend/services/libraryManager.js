@@ -24,7 +24,7 @@ async function getLidarrClient() {
     try {
       const mod = await import("./lidarrClient.js");
       lidarrClient = mod.lidarrClient;
-    } catch (err) {}
+    } catch (err) { }
   }
   return lidarrClient;
 }
@@ -33,12 +33,25 @@ function scheduleLidarrRetry(instance) {
   if (_retryTimeoutId) return;
   _retryTimeoutId = setTimeout(() => {
     _retryTimeoutId = null;
-    instance.getAllArtists().catch(() => {});
+    instance.getAllArtists().catch(() => { });
   }, LIDARR_RETRY_MS);
 }
 
 export function getCachedArtistCount() {
   return Array.isArray(_cachedArtists) ? _cachedArtists.length : 0;
+}
+
+/**
+ * Clears the Lidarr failure lockout so that the next getAllArtists() call hits
+ * Lidarr immediately rather than waiting out the 60-second retry window.
+ * Call this whenever Lidarr credentials/URL are updated.
+ */
+export function resetLidarrFailureState() {
+  _lastLidarrFailureAt = 0;
+  if (_retryTimeoutId) {
+    clearTimeout(_retryTimeoutId);
+    _retryTimeoutId = null;
+  }
 }
 
 function getSettings() {
@@ -76,7 +89,7 @@ export class LibraryManager {
           if (existing) {
             return this.mapLidarrArtist(existing);
           }
-        } catch {}
+        } catch { }
       }
       console.error(
         `[LibraryManager] Failed to add artist to Lidarr: ${error.message}`,
@@ -103,8 +116,8 @@ export class LibraryManager {
             const profiles = await lidarr.getMetadataProfiles();
             const profile = Array.isArray(profiles)
               ? profiles.find(
-                  (item) => String(item?.id) === String(metadataProfileId),
-                )
+                (item) => String(item?.id) === String(metadataProfileId),
+              )
               : null;
             if (profile?.primaryAlbumTypes) {
               const normalizeTypeName = (value) =>
@@ -134,7 +147,7 @@ export class LibraryManager {
               }
             }
           }
-        } catch {}
+        } catch { }
       }
 
       let releaseGroups = await musicbrainzGetArtistReleaseGroups(mbid);
@@ -341,7 +354,7 @@ export class LibraryManager {
               );
               _lastFullArtistFetchAt = Date.now();
             }
-          } catch {}
+          } catch { }
         }
         return Array.isArray(_cachedArtists)
           ? _cachedArtists.slice(0, normalizedLimit)
@@ -446,7 +459,7 @@ export class LibraryManager {
                 );
               });
             })
-            .catch(() => {});
+            .catch(() => { });
         }
         return mapped;
       }
@@ -576,12 +589,12 @@ export class LibraryManager {
       );
       const artistAlbumIds = Array.isArray(allAlbums)
         ? allAlbums
-            .filter(
-              (a) =>
-                a.artistId === parseInt(artistId) &&
-                a.foreignAlbumId !== releaseGroupMbid,
-            )
-            .map((a) => a.id)
+          .filter(
+            (a) =>
+              a.artistId === parseInt(artistId) &&
+              a.foreignAlbumId !== releaseGroupMbid,
+          )
+          .map((a) => a.id)
         : [];
       for (const albumId of artistAlbumIds) {
         try {

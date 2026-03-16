@@ -100,6 +100,20 @@ router.post("/", async (req, res) => {
     };
 
     dbOps.updateSettings(updatedSettings);
+
+    // Refresh the Lidarr client config from DB and clear any failure lockout so
+    // the library page shows artists immediately after credentials are saved.
+    try {
+      const { lidarrClient } = await import("../services/lidarrClient.js");
+      lidarrClient.updateConfig();
+    } catch { }
+    if (integrations?.lidarr) {
+      try {
+        const { resetLidarrFailureState } = await import("../services/libraryManager.js");
+        resetLidarrFailureState();
+      } catch { }
+    }
+
     res.json(updatedSettings);
   } catch (error) {
     console.error("Settings POST error:", error);
