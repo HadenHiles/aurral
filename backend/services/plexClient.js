@@ -106,18 +106,31 @@ export class PlexClient {
     /**
      * Create a new audio playlist from an array of ratingKey strings.
      * Requires the server's machineIdentifier, fetched automatically.
+     * Creates the playlist with the first item, then adds the remaining items
+     * one-by-one via PUT — the POST endpoint only reliably seeds a single item.
      */
     async createPlaylist(title, ratingKeys) {
         if (!ratingKeys || ratingKeys.length === 0) return null;
         const machineId = await this.getMachineIdentifier();
-        const uri = `server://${machineId}/com.plexapp.plugins.library/library/metadata/${ratingKeys.join(",")}`;
+        const firstUri = `server://${machineId}/com.plexapp.plugins.library/library/metadata/${ratingKeys[0]}`;
         const data = await this._request("POST", "/playlists", {
             title,
             type: "audio",
             smart: 0,
-            uri,
+            uri: firstUri,
         });
-        return data?.MediaContainer?.Metadata?.[0] || null;
+        const playlist = data?.MediaContainer?.Metadata?.[0] || null;
+        if (!playlist) return null;
+
+        // Add remaining tracks individually
+        for (const key of ratingKeys.slice(1)) {
+            const itemUri = `server://${machineId}/com.plexapp.plugins.library/library/metadata/${key}`;
+            await this._request("PUT", `/playlists/${playlist.ratingKey}/items`, { uri: itemUri }).catch((err) =>
+                console.warn(`[PlexClient] Failed to add item ${key} to playlist "${title}":`, err?.message)
+            );
+        }
+
+        return playlist;
     }
 
     async deletePlaylist(ratingKey) {

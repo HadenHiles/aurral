@@ -170,7 +170,7 @@ export class WeeklyFlowPlaylistManager {
         console.warn("[WeeklyFlowPlaylistManager] Plex scan trigger failed:", err?.message)
       );
       // Delay Plex playlist sync to allow the library scan to index new tracks
-      const PLEX_SYNC_DELAY_MS = 90000;
+      const PLEX_SYNC_DELAY_MS = 180000;
       setTimeout(() => {
         this.syncPlexPlaylists().catch((err) =>
           console.warn("[WeeklyFlowPlaylistManager] Plex playlist sync failed:", err?.message)
