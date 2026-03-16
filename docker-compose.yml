@@ -1,6 +1,6 @@
 services:
   aurral:
-    image: ghcr.io/hadenhiles/aurral:latest
+    image: hadenhiles/aurral:latest
     build: .
     restart: unless-stopped
     user: "0:0"
